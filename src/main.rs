@@ -15,15 +15,24 @@ mod update_admin;
 mod update_difficulty;
 mod utils;
 
-use std::sync::Arc;
-
+use anyhow::Result;
 use clap::{command, Parser, Subcommand};
-use solana_sdk::signature::{read_keypair_file, Keypair};
+use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    hash::Hash,
+    signature::{read_keypair_file, Keypair},
+};
+use std::sync::Arc;
+use std::sync::Mutex;
 
-struct Miner {
-    pub keypair_filepath: Option<String>,
+pub struct Miner {
+    pub keypair: Keypair,
     pub priority_fee: u64,
-    pub cluster: String,
+
+    pub rpc_url: String,
+    pub rpc_client: RpcClient,
+    latest_blockhash: Arc<Mutex<(Hash, u64)>>,
 }
 
 #[derive(Parser, Debug)]
@@ -170,7 +179,7 @@ struct UpdateAdminArgs {
 struct UpdateDifficultyArgs {}
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     // Load the config file from custom path, the default path, or use default config values
@@ -189,10 +198,10 @@ async fn main() {
     let cluster = args.rpc.unwrap_or(cli_config.json_rpc_url);
     let default_keypair = args.keypair.unwrap_or(cli_config.keypair_path);
 
-    let miner = Arc::new(Miner::new(
-        cluster.clone(),
-        args.priority_fee,
-        Some(default_keypair),
+    let miner = Miner::new(cluster.clone(), args.priority_fee, &default_keypair).await?;
+    tokio::spawn(poll_latest_blockhash(
+        miner.clone_rpc_client(),
+        miner.latest_blockhash.clone(),
     ));
 
     // Execute user command.
@@ -213,7 +222,7 @@ async fn main() {
             miner.mine(args.threads).await;
         }
         Commands::Claim(args) => {
-            miner.claim(cluster, args.beneficiary, args.amount).await;
+            miner.claim(args.beneficiary, args.amount).await;
         }
         #[cfg(feature = "admin")]
         Commands::Initialize(_) => {
@@ -228,21 +237,64 @@ async fn main() {
             miner.update_difficulty().await;
         }
     }
+
+    Ok(())
 }
 
 impl Miner {
-    pub fn new(cluster: String, priority_fee: u64, keypair_filepath: Option<String>) -> Self {
-        Self {
-            keypair_filepath,
+    pub async fn new(rpc_url: String, priority_fee: u64, keypair_filepath: &str) -> Result<Self> {
+        let keypair = read_keypair_file(keypair_filepath).map_err(|e| anyhow::anyhow!("{}", e))?;
+        let rpc_client =
+            RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::confirmed());
+
+        let blockhash = rpc_client
+            .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+            .await?;
+
+        let latest_blockhash = Arc::new(Mutex::new(blockhash));
+
+        Ok(Self {
+            keypair,
             priority_fee,
-            cluster,
-        }
+            rpc_url,
+            rpc_client,
+            latest_blockhash,
+        })
     }
 
-    pub fn signer(&self) -> Keypair {
-        match self.keypair_filepath.clone() {
-            Some(filepath) => read_keypair_file(filepath).unwrap(),
-            None => panic!("No keypair provided"),
-        }
+    pub fn clone_rpc_client(&self) -> RpcClient {
+        RpcClient::new_with_commitment(self.rpc_url.clone(), CommitmentConfig::confirmed())
+    }
+
+    pub fn signer(&self) -> &Keypair {
+        &self.keypair
+    }
+
+    pub fn get_latest_blockhash(&self) -> (Hash, u64) {
+        let lock = self.latest_blockhash.lock().unwrap();
+        *lock
+    }
+}
+
+pub async fn poll_latest_blockhash(
+    rpc_client: RpcClient,
+    latest_blockhash: Arc<Mutex<(Hash, u64)>>,
+) -> ! {
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+        let blockhash = match rpc_client
+            .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+            .await
+        {
+            Ok(blockhash) => blockhash,
+            Err(e) => {
+                println!("Failed to fetch latest blockhash: {:?}", e);
+                continue;
+            }
+        };
+
+        let mut lock = latest_blockhash.lock().unwrap();
+        *lock = blockhash;
     }
 }

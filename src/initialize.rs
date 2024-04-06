@@ -8,9 +8,7 @@ impl Miner {
     pub async fn initialize(&self) {
         // Return early if program is initialized
         let signer = self.signer();
-        let client =
-            RpcClient::new_with_commitment(self.cluster.clone(), CommitmentConfig::confirmed());
-        if client.get_account(&TREASURY_ADDRESS).await.is_ok() {
+        if self.rpc_client.get_account(&TREASURY_ADDRESS).await.is_ok() {
             return;
         }
 
