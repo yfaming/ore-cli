@@ -29,11 +29,12 @@ impl Miner {
         let signer = self.signer();
 
         // Build tx
-        let (mut hash, mut slot) = self
-            .rpc_client
-            .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
-            .await
-            .unwrap();
+        let (mut hash, mut slot) = self.get_latest_blockhash();
+        // let (mut hash, mut slot) = self
+        //     .rpc_client
+        //     .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+        //     .await
+        //     .unwrap();
         let mut send_cfg = RpcSendTransactionConfig {
             skip_preflight: true,
             preflight_commitment: Some(CommitmentLevel::Confirmed),
@@ -164,11 +165,12 @@ impl Miner {
 
             // Retry
             std::thread::sleep(Duration::from_millis(2000));
-            (hash, slot) = self
-                .rpc_client
-                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
-                .await
-                .unwrap();
+            (hash, slot) = self.get_latest_blockhash();
+            // (hash, slot) = self
+            //     .rpc_client
+            //     .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+            //     .await
+            //     .unwrap();
             send_cfg = RpcSendTransactionConfig {
                 skip_preflight: true,
                 preflight_commitment: Some(CommitmentLevel::Confirmed),

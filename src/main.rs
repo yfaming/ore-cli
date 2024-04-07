@@ -88,13 +88,13 @@ enum Commands {
     Mine(MineArgs),
 
     #[command(about = "Claim available mining rewards")]
-    Claim(ClaimArgs),
+    Claim,
 
     #[command(about = "Fetch your balance of unclaimed mining rewards")]
     Rewards(RewardsArgs),
 
     #[command(about = "Fetch the treasury account and balance")]
-    Treasury(TreasuryArgs),
+    Treasury,
 
     #[cfg(feature = "admin")]
     #[command(about = "Initialize the program")]
@@ -142,26 +142,6 @@ struct MineArgs {
         default_value = "1"
     )]
     threads: u64,
-}
-
-#[derive(Parser, Debug)]
-struct TreasuryArgs {}
-
-#[derive(Parser, Debug)]
-struct ClaimArgs {
-    #[arg(
-        // long,
-        value_name = "AMOUNT",
-        help = "The amount of rewards to claim. Defaults to max."
-    )]
-    amount: Option<f64>,
-
-    #[arg(
-        // long,
-        value_name = "TOKEN_ACCOUNT_ADDRESS",
-        help = "Token account to receive mining rewards."
-    )]
-    beneficiary: Option<String>,
 }
 
 #[cfg(feature = "admin")]
@@ -215,14 +195,14 @@ async fn main() -> Result<()> {
         Commands::Rewards(args) => {
             miner.rewards(args.address).await;
         }
-        Commands::Treasury(_) => {
+        Commands::Treasury => {
             miner.treasury().await;
         }
         Commands::Mine(args) => {
             miner.mine(args.threads).await;
         }
-        Commands::Claim(args) => {
-            miner.claim(args.beneficiary, args.amount).await;
+        Commands::Claim => {
+            miner.claim().await;
         }
         #[cfg(feature = "admin")]
         Commands::Initialize(_) => {

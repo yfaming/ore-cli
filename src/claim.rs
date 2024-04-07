@@ -1,39 +1,24 @@
-use std::str::FromStr;
-
-use ore::{self, state::Proof, utils::AccountDeserialize};
+use crate::utils::get_proof;
+use crate::{cu_limits::CU_LIMIT_CLAIM, Miner};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{compute_budget::ComputeBudgetInstruction, signature::Signer};
 
-use crate::{cu_limits::CU_LIMIT_CLAIM, utils::proof_pubkey, Miner};
-
 impl Miner {
-    pub async fn claim(&self, beneficiary: Option<String>, amount: Option<f64>) {
-        let signer = self.signer();
-        let pubkey = signer.pubkey();
-        let beneficiary = match beneficiary {
-            Some(beneficiary) => {
-                Pubkey::from_str(&beneficiary).expect("Failed to parse beneficiary address")
-            }
-            None => self.initialize_ata().await,
-        };
-        let amount = if let Some(amount) = amount {
-            (amount * 10f64.powf(ore::TOKEN_DECIMALS as f64)) as u64
-        } else {
-            match self.rpc_client.get_account(&proof_pubkey(pubkey)).await {
-                Ok(proof_account) => {
-                    let proof = Proof::try_from_bytes(&proof_account.data).unwrap();
-                    proof.claimable_rewards
-                }
-                Err(err) => {
-                    println!("Error looking up claimable rewards: {:?}", err);
-                    return;
-                }
-            }
-        };
+    pub async fn claim(&self) {
+        let proof = get_proof(&self.rpc_client, self.signer().pubkey()).await;
+        let amount = proof.claimable_rewards;
         let amountf = (amount as f64) / (10f64.powf(ore::TOKEN_DECIMALS as f64));
+        if amountf < 0.0 {
+            println!("nothing to claim, exit now.");
+            return;
+        } else {
+            println!("claimable rewards: {:} ORE", amountf);
+        }
+
+        let beneficiary = self.initialize_ata().await;
         let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(CU_LIMIT_CLAIM);
         let cu_price_ix = ComputeBudgetInstruction::set_compute_unit_price(self.priority_fee);
-        let ix = ore::instruction::claim(pubkey, beneficiary, amount);
+        let ix = ore::instruction::claim(self.signer().pubkey(), beneficiary, amount);
         println!("Submitting claim transaction...");
         match self
             .send_and_confirm(&[cu_limit_ix, cu_price_ix, ix], false, false)

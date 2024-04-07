@@ -1,3 +1,8 @@
+use crate::{
+    cu_limits::{CU_LIMIT_MINE, CU_LIMIT_RESET},
+    utils::{get_clock_account, get_proof, get_treasury},
+    Miner,
+};
 use ore::{self, state::Bus, BUS_ADDRESSES, BUS_COUNT, EPOCH_DURATION};
 use rand::Rng;
 use solana_sdk::{
@@ -6,12 +11,6 @@ use solana_sdk::{
     signature::Signer,
 };
 use std::sync::{atomic::AtomicBool, Arc, Mutex};
-
-use crate::{
-    cu_limits::{CU_LIMIT_MINE, CU_LIMIT_RESET},
-    utils::{get_clock_account, get_proof, get_treasury},
-    Miner,
-};
 
 // Odds of being selected to submit a reset tx
 const RESET_ODDS: u64 = 20;
@@ -35,9 +34,9 @@ impl Miner {
 
             println!("Claimable: {} ORE", rewards);
             println!("Reward rate: {} ORE", reward_rate);
+            println!();
 
-            // Escape sequence that clears the screen and the scrollback buffer
-            println!("\nMining for a valid hash...");
+            println!("Mining for a valid hash...");
             let (next_hash, nonce) =
                 self.find_next_hash_par(proof.hash.into(), treasury.difficulty.into(), threads);
             println!(
