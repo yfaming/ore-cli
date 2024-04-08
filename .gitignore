@@ -1,2 +1,7 @@
 /target
 output.log
+
+*.swp
+*.swo
+
+.vscode/

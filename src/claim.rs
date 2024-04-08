@@ -8,7 +8,7 @@ impl Miner {
         let proof = get_proof(&self.rpc_client, self.signer().pubkey()).await;
         let amount = proof.claimable_rewards;
         let amountf = (amount as f64) / (10f64.powf(ore::TOKEN_DECIMALS as f64));
-        if amountf < 0.0 {
+        if amountf <= 0.0 {
             println!("nothing to claim, exit now.");
             return;
         } else {
