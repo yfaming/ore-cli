@@ -16,8 +16,8 @@ use crate::Miner;
 
 const RPC_RETRIES: usize = 0;
 const SIMULATION_RETRIES: usize = 4;
-const GATEWAY_RETRIES: usize = 4;
-const CONFIRM_RETRIES: usize = 4;
+const GATEWAY_RETRIES: usize = 2;
+const CONFIRM_RETRIES: usize = 2;
 
 impl Miner {
     pub async fn send_and_confirm(
@@ -122,7 +122,7 @@ impl Miner {
                         return Ok(sig);
                     }
                     for _ in 0..CONFIRM_RETRIES {
-                        std::thread::sleep(Duration::from_millis(2000));
+                        std::thread::sleep(Duration::from_millis(5000));
                         match self.rpc_client.get_signature_statuses(&sigs).await {
                             Ok(signature_statuses) => {
                                 println!("Confirms: {:?}", signature_statuses.value);
@@ -164,7 +164,7 @@ impl Miner {
             }
 
             // Retry
-            std::thread::sleep(Duration::from_millis(2000));
+            std::thread::sleep(Duration::from_millis(5000));
             (hash, slot) = self.get_latest_blockhash();
             // (hash, slot) = self
             //     .rpc_client

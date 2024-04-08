@@ -1,6 +1,5 @@
 use ore::TREASURY_ADDRESS;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
+use solana_sdk::signature::Signer;
 
 use crate::Miner;
 
@@ -14,7 +13,7 @@ impl Miner {
 
         // Sign and send transaction.
         let ix = ore::instruction::initialize(signer.pubkey());
-        self.send_and_confirm(&[ix], false)
+        self.send_and_confirm(&[ix], false, false)
             .await
             .expect("Transaction failed");
     }

@@ -82,7 +82,7 @@ enum Commands {
     Balance(BalanceArgs),
 
     #[command(about = "Fetch the distributable rewards of the busses")]
-    Busses(BussesArgs),
+    Busses,
 
     #[command(about = "Mine Ore using local compute")]
     Mine(MineArgs),
@@ -98,7 +98,7 @@ enum Commands {
 
     #[cfg(feature = "admin")]
     #[command(about = "Initialize the program")]
-    Initialize(InitializeArgs),
+    Initialize,
 
     #[cfg(feature = "admin")]
     #[command(about = "Update the program admin authority")]
@@ -106,7 +106,7 @@ enum Commands {
 
     #[cfg(feature = "admin")]
     #[command(about = "Update the mining difficulty")]
-    UpdateDifficulty(UpdateDifficultyArgs),
+    UpdateDifficulty,
 }
 
 #[derive(Parser, Debug)]
@@ -118,9 +118,6 @@ struct BalanceArgs {
     )]
     pub address: Option<String>,
 }
-
-#[derive(Parser, Debug)]
-struct BussesArgs {}
 
 #[derive(Parser, Debug)]
 struct RewardsArgs {
@@ -146,17 +143,9 @@ struct MineArgs {
 
 #[cfg(feature = "admin")]
 #[derive(Parser, Debug)]
-struct InitializeArgs {}
-
-#[cfg(feature = "admin")]
-#[derive(Parser, Debug)]
 struct UpdateAdminArgs {
     new_admin: String,
 }
-
-#[cfg(feature = "admin")]
-#[derive(Parser, Debug)]
-struct UpdateDifficultyArgs {}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -189,7 +178,7 @@ async fn main() -> Result<()> {
         Commands::Balance(args) => {
             miner.balance(args.address).await;
         }
-        Commands::Busses(_) => {
+        Commands::Busses => {
             miner.busses().await;
         }
         Commands::Rewards(args) => {
@@ -205,7 +194,7 @@ async fn main() -> Result<()> {
             miner.claim().await;
         }
         #[cfg(feature = "admin")]
-        Commands::Initialize(_) => {
+        Commands::Initialize => {
             miner.initialize().await;
         }
         #[cfg(feature = "admin")]
@@ -213,7 +202,7 @@ async fn main() -> Result<()> {
             miner.update_admin(args.new_admin).await;
         }
         #[cfg(feature = "admin")]
-        Commands::UpdateDifficulty(_) => {
+        Commands::UpdateDifficulty => {
             miner.update_difficulty().await;
         }
     }
